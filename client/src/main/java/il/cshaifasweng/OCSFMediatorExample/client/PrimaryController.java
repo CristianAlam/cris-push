@@ -29,6 +29,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.DialogPane;
 import javafx.scene.image.ImageView;
+import org.greenrobot.eventbus.Subscribe;
 import org.hibernate.sql.Update;
 
 import static com.sun.xml.bind.v2.schemagen.Util.equal;
@@ -36,7 +37,7 @@ import static com.sun.xml.bind.v2.schemagen.Util.equal;
 
 public class PrimaryController {
 	static boolean returnedFromSecondaryController = false;
-	boolean firstRun = true;
+	static boolean firstRun = true;
 	@FXML // ResourceBundle that was given to the FXMLLoader
 	private ResourceBundle resources;
 
@@ -489,24 +490,18 @@ public class PrimaryController {
 	}
 
 
-	void initializeData(){
+	void initializeData() {
 
-		if(firstRun == true){ // this should enter only the first time we enter the app
-
-			try {
-				SimpleClient.getClient().sendToServer("first entry"); // sends the updated product to the server class
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		try {
+			SimpleClient.getClient().sendToServer("first entry"); // sends the updated product to the server class
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
+	}
 
-
-
-		// 1. if found a table , with a name of products_table then dont initialzie anything
-		// 2. if didnt find a table with a name of products_table then initializy 6 items
-		if(!returnedFromSecondaryController){
-
+	@Subscribe
+	void initDatabase(InitDatabaseEvent event){
 			Product flower1 = new Product(1,flower_button1.getId(),flower_name1.getContentText(),"",flower_price1.getContentText());
 			allProducts.add(flower1);
 			Product flower2 = new Product(2,flower_button2.getId(),flower_name2.getContentText(),"",flower_price2.getContentText());
@@ -534,15 +529,7 @@ public class PrimaryController {
 				e.printStackTrace();
 			}
 
-
 		}
-		else{ // this is only for limited TIME SHOULD DELETE LATER !
-
-			Product flowerToAdd = new Product(7,"stam string","stam string 2","stam string 3","er fek");
-
-		}
-
-	}
 
 	static Product getCurrent_button()
 	{
@@ -560,5 +547,9 @@ public class PrimaryController {
 
 	static boolean getReturnedFromSecondaryController(){
 		return returnedFromSecondaryController ;
+	}
+
+	public static void setFirstRun(boolean bool){
+		firstRun = bool;
 	}
 }

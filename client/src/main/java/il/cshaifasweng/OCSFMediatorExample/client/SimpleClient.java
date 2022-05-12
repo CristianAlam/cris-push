@@ -32,12 +32,11 @@ public class SimpleClient extends AbstractClient {
 			if(recievedStr.equals("found")){
 				System.out.println("found a table in the database !"); // we found the table so we dont need to create 6 items
 				// now tell the primary controller that the table is found
-
 			}
 			else if(recievedStr.equals("not found")){
-
 				System.out.println("didnt find a table"); // we didnt find the table , so we need to create 6 items at the beggings
 				// now tell the primary controller that the table isnt found
+				InitDatabaseEvent event = new InitDatabaseEvent(true);
 			}
 
 

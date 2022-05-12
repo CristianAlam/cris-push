@@ -20,6 +20,9 @@ import org.hibernate.cfg.Configuration;
 import org.hibernate.service.ServiceRegistry;
 
 import javax.persistence.EntityManager;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 
 
 public class SimpleServer extends AbstractServer {
@@ -79,10 +82,21 @@ public class SimpleServer extends AbstractServer {
 			String recievedStr = (String)msg;
 			if(recievedStr.equals("first entry")){ // if arrived here it means we opened the app
 				List<String> list = session.createSQLQuery("SHOW TABLES from flowers;").list();
+
 				if(list.get(0).equals("products_table")){ // ask if there exists a table with name of "products_table" in the database
-					client.sendToClient("found"); // if found the table then tell the client, so they know they dont intialize 6 products again
+
+					if(countRows()==0){
+						client.sendToClient("not found");
+					}
+					else {
+						client.sendToClient("found"); // if found the table then tell the client, so they know they dont intialize 6 products again
+					}
+				}
+				else{
+					client.sendToClient("not found");
 				}
 			}
+
 
 		}
 
@@ -249,7 +263,16 @@ public class SimpleServer extends AbstractServer {
 
 		}
 
-	}}
+	}
+
+	Long countRows(){
+		final CriteriaBuilder criteriaBuilder = session.getCriteriaBuilder();
+		CriteriaQuery<Long> criteria = criteriaBuilder.createQuery(Long.class);
+		Root<Product> root = criteria.from(Product.class);
+		criteria.select(criteriaBuilder.count(root));
+		return session.createQuery(criteria).getSingleResult();
+	}
+}
 
 
 
