@@ -5,6 +5,7 @@
 package il.cshaifasweng.OCSFMediatorExample.server.ocsf;
 
 import java.net.*;
+import java.sql.SQLException;
 import java.util.*;
 import java.io.*;
 
@@ -530,7 +531,7 @@ public abstract class AbstractServer implements Runnable
    *  sent the message.
    */
   protected abstract void handleMessageFromClient(
-    Object msg, ConnectionToClient client) throws IOException;
+    Object msg, ConnectionToClient client) throws IOException, SQLException;
 
 
 // METHODS TO BE USED FROM WITHIN THE FRAMEWORK ONLY ----------------
@@ -548,7 +549,7 @@ public abstract class AbstractServer implements Runnable
    *  sent the message.
    */
   final synchronized void receiveMessageFromClient(
-    Object msg, ConnectionToClient client) throws IOException {
+    Object msg, ConnectionToClient client) throws IOException, SQLException {
     this.handleMessageFromClient(msg, client);
   }
 }

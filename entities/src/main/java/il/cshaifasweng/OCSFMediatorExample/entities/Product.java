@@ -72,4 +72,7 @@ public class Product implements Serializable {
         return this.id;
     }
 
+    public void updateid() {
+        this.id=id-1;
+    }
 }

@@ -1,10 +1,14 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import il.cshaifasweng.OCSFMediatorExample.entities.RemovedProduct;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 //import il.cshaifasweng.OCSFMediatorExample.server.Product;
 import java.io.IOException;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -14,6 +18,8 @@ import org.hibernate.*;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.service.ServiceRegistry;
+
+import javax.persistence.EntityManager;
 
 
 public class SimpleServer extends AbstractServer {
@@ -26,7 +32,13 @@ public class SimpleServer extends AbstractServer {
 		super(port);
 
 	}
+	public void Saveinsess(){
+		for (int i = 0; i < productGeneralList.size(); i++) {
 
+			session.save(productGeneralList.get(i)); // save the Product in the database
+			session.flush();
+		}
+	}
 	private static SessionFactory getSessionFactory() throws HibernateException {
 		Configuration configuration = new Configuration();
 
@@ -55,16 +67,48 @@ public class SimpleServer extends AbstractServer {
 	}
 
 	@Override
-	protected void handleMessageFromClient(Object msg, ConnectionToClient client) {
+	protected void handleMessageFromClient(Object msg, ConnectionToClient client) throws SQLException, IOException {
 
-		if(msg instanceof ArrayList ){ // arrived from the initializing of the program, so we initialize the database
+
+
+		if(msg instanceof String){
+			SessionFactory sessionFactory = getSessionFactory();
+			session = sessionFactory.openSession();
+			Transaction tx1 = session.beginTransaction();
+
+			String recievedStr = (String)msg;
+			if(recievedStr.equals("first entry")){ // if arrived here it means we opened the app
+				List<String> list = session.createSQLQuery("SHOW TABLES from flowers;").list();
+				if(list.get(0).equals("products_table")){ // ask if there exists a table with name of "products_table" in the database
+					client.sendToClient("found"); // if found the table then tell the client, so they know they dont intialize 6 products again
+				}
+			}
+
+		}
+
+		int flowersnum = 0;
+		/*Session sessionProd = null;
+		List<Object> list = sessionProd.createQuery("show tables from Database_name").list();
+		System.out.println(list.get(0));*/
+		if (msg instanceof ArrayList) { // arrived from the initializing of the program, so we initialize the database
 			// with the starting Products
 			SessionFactory sessionFactory = getSessionFactory();
 			session = sessionFactory.openSession();
 			Transaction tx1 = session.beginTransaction();
 
+        	/*DatabaseMetaData databaseMetaData = null;
+		ResultSet resultSet = databaseMetaData.getTables(null, "flowers", null, new String[]{"TABLE"});
+		System.out.println("arrived to handlemessage");
+		while(resultSet.next()) {
+			String tableName = resultSet.getString("TABLE_NAME");
+			System.out.println("the name of the table is:" + tableName);
+			//String remarks = resultSet.getString("REMARKS");
+		}*/
+
+
 			List<Product> resultList = (List<Product>) msg;
-			for(int i=0;i<resultList.size();i++){
+			flowersnum = resultList.size();
+			for (int i = 0; i < resultList.size(); i++) {
 				//productGeneralList.set(i,resultList.get(i));
 				session.save(resultList.get(i)); // save the Product in the database
 				session.flush();
@@ -72,8 +116,7 @@ public class SimpleServer extends AbstractServer {
 			tx1.commit();
 
 
-
-			for(int i=0;i<resultList.size();i++){
+			for (int i = 0; i < resultList.size(); i++) {
 				productGeneralList.add(resultList.get(i));
 
 			}
@@ -81,65 +124,133 @@ public class SimpleServer extends AbstractServer {
 
 			session.close();
 
-		}
+		} else // if we arrived to the else it means we reached here from the event handler of the "Apply Changes" button
+		{// so what we do is take the changes on the product and update the database
 
-		else{ // if we arrived to the else it means we reached here from the event handler of the "Apply Changes" button
-			// so what we do is take the changes on the product and update the database
+			if(msg instanceof RemovedProduct) {
+
+				RemovedProduct recievedmsg = (RemovedProduct) msg;
+
+
+
+				System.out.println("remove a flower");
+				flowersnum--;
+				String IDREMOVEDITEM = recievedmsg.getid();
+				int removedId=Integer.parseInt(IDREMOVEDITEM);
+				SessionFactory sessionFactory = getSessionFactory();
+				session = sessionFactory.openSession();
+				Transaction tx = session.beginTransaction();
+				//System.out.println("the recieved string id is : " + IDREMOVEDITEM);
+				//System.out.println("arrived here!!0");
+
+
+				try {
+					System.out.println("arrived here!!!1");
+					int i;
+
+
+
+					System.out.println("arrived here!!2");
+					for (i = 0; i < productGeneralList.size(); i++) {
+						if ( productGeneralList.get(i).getID() ==removedId) {
+							productGeneralList.remove(i);
+							break;
+
+						}
+					}
+
+					// we must to update the items id
+					/* USE UPDATE METHOD IN THE FUTURE */
+					for(int j=i;j<productGeneralList.size();j++)
+					{
+
+						productGeneralList.get(j).updateid();
+					}
+					System.out.println("send to client");
+					client.sendToClient(productGeneralList);
+					Saveinsess();
+					tx.commit();
+
+
+				} catch (Exception exception) {
+					if (session != null) {
+						session.getTransaction().rollback();
+					}
+					System.err.println("An error occured, changes have been rolled back.");
+					exception.printStackTrace();
+				} finally {
+					if (session != null) {
+						session.close();
+					}
+				}
+
+			}
+
 
 			Product recievedProduct = (Product) msg;
 			int recievedProductID = recievedProduct.getID();
-
 			String recievedProductName = recievedProduct.getName();
 			String recievedProductDetails = recievedProduct.getDetails();
 			String recievedProductButton = recievedProduct.getButton();
 			String recievedProductPrice = recievedProduct.getPrice();
 			String recievedProductImage = recievedProduct.getImage();
 
-			SessionFactory sessionFactory = getSessionFactory();
-			session = sessionFactory.openSession();
-			Transaction tx = session.beginTransaction();
+			if (recievedProductID >flowersnum) { //adding new row in the database table
+				System.out.println("add a flower");
+				flowersnum++;
+				SessionFactory sessionFactory = getSessionFactory();
+				session = sessionFactory.openSession();
+				Transaction tx = session.beginTransaction();
+				session.save(recievedProduct);
+				session.flush();
+				productGeneralList.add(recievedProduct);
 
-			try {
+				Saveinsess();
+				tx.commit();
+				session.close();
+			}
 
-				Product updatedProduct = new Product(recievedProductID,recievedProductButton,recievedProductName,recievedProductDetails,recievedProductPrice);
+
+			else {
+
+				SessionFactory sessionFactory = getSessionFactory();
+				session = sessionFactory.openSession();
+				Transaction tx = session.beginTransaction();
+				try {
+
+					Product updatedProduct = new Product(recievedProductID, recievedProductButton, recievedProductName, recievedProductDetails, recievedProductPrice);
 
 
-				for(int i = 0 ; i< productGeneralList.size();i++){
-					if(productGeneralList.get(i).getID() == recievedProductID){
-						productGeneralList.set(i,updatedProduct);
+					for (int i = 0; i < productGeneralList.size(); i++) {
+						if (productGeneralList.get(i).getID() == recievedProductID) {
+							productGeneralList.set(i, updatedProduct);
+						}
+					}
+
+
+					/* USE UPDATE METHOD IN THE FUTURE */
+					Saveinsess();
+					tx.commit();
+
+
+				} catch (Exception exception) {
+					if (session != null) {
+						session.getTransaction().rollback();
+					}
+					System.err.println("An error occured, changes have been rolled back.");
+					exception.printStackTrace();
+				} finally {
+					if (session != null) {
+						session.close();
 					}
 				}
 
-
-				/* USE UPDATE METHOD IN THE FUTURE */
-				for(int i=0;i<productGeneralList.size();i++){
-
-					session.save(productGeneralList.get(i)); // save the Product in the database
-					session.flush();
-				}
-				tx.commit();
-
-
-
-
-			}catch (Exception exception) {
-				if (session != null) {
-					session.getTransaction().rollback();
-				}
-				System.err.println("An error occured, changes have been rolled back.");
-				exception.printStackTrace();
-			} finally {
-				if (session != null) {
-					session.close();
-				}
 			}
 
 		}
 
-	}
+	}}
 
 
-
-}
 
 
